@@ -2,92 +2,222 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>CRM Pro v2.0</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZenPoint - Système de Pointage & Comm</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .glass { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        .sidebar-link:hover { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+        .chat-container { height: calc(100 - 200px); }
+    </style>
 </head>
-<body class="bg-gray-100 flex h-screen">
+<body class="bg-slate-50 text-slate-900 font-sans">
 
-    <aside class="w-64 bg-slate-900 text-white p-6">
-        <h1 class="text-xl font-bold mb-8">PHINGOO CLONE</h1>
-        <nav class="space-y-4">
-            <div class="text-blue-400 font-bold italic">Tableau de bord</div>
-            <div class="hover:text-blue-300 cursor-pointer">Appels</div>
-        </nav>
-    </aside>
-
-    <main class="flex-1 flex flex-col p-8">
-        <section class="bg-white p-6 rounded-xl shadow-sm mb-8">
-            <h2 class="font-bold mb-4 italic text-gray-700 underline">Ajouter un nouveau Prospect</h2>
-            <div class="grid grid-cols-3 gap-4">
-                <input id="newNom" type="text" placeholder="Nom Complet" class="border p-2 rounded">
-                <input id="newTel" type="text" placeholder="Téléphone" class="border p-2 rounded">
-                <button onclick="ajouterLead()" class="bg-blue-600 text-white rounded font-bold hover:bg-blue-700 transition">Enregistrer</button>
+    <div id="app" class="flex h-screen overflow-hidden">
+        <aside class="w-64 bg-slate-900 text-white flex flex-col shadow-xl transition-all duration-300">
+            <div class="p-6 text-2xl font-black tracking-tighter text-blue-400 flex items-center gap-2">
+                <i data-lucide="clock"></i> ZENPOINT
             </div>
-        </section>
+            
+            <nav class="flex-1 px-4 space-y-2 mt-4">
+                <p class="text-xs uppercase text-slate-500 font-bold mb-2 px-2">Navigation</p>
+                <button onclick="switchView('agent')" class="sidebar-link w-full flex items-center gap-3 p-3 rounded-lg transition">
+                    <i data-lucide="user"></i> Espace Agent
+                </button>
+                <button onclick="switchView('admin')" class="sidebar-link w-full flex items-center gap-3 p-3 rounded-lg transition">
+                    <i data-lucide="shield-check"></i> Supervision Admin
+                </button>
+                <button onclick="switchView('chat')" class="sidebar-link w-full flex items-center gap-3 p-3 rounded-lg transition">
+                    <i data-lucide="message-square"></i> Centre de Chat
+                </button>
+            </nav>
 
-        <div class="bg-white rounded-xl shadow-sm overflow-hidden">
-            <table class="w-full">
-                <thead class="bg-gray-50 border-b">
-                    <tr>
-                        <th class="p-4 text-left">Nom</th>
-                        <th class="p-4 text-left">Téléphone</th>
-                        <th class="p-4 text-left">Statut</th>
-                        <th class="p-4 text-left">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="leadsTableBody">
-                    </tbody>
-            </table>
-        </div>
-    </main>
+            <div class="p-4 bg-slate-800 m-4 rounded-xl">
+                <label class="text-xs text-slate-400 block mb-2">Thème du Dashboard</label>
+                <select id="themeSelect" onchange="changeTheme()" class="bg-slate-700 text-white text-xs p-2 rounded w-full outline-none">
+                    <option value="blue">Bleu Professionnel</option>
+                    <option value="dark">Mode Nuit Total</option>
+                    <option value="emerald">Vert Émeraude</option>
+                </select>
+            </div>
+        </aside>
+
+        <main class="flex-1 flex flex-col overflow-hidden">
+            
+            <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shadow-sm">
+                <h2 id="viewTitle" class="text-xl font-bold text-slate-700 italic">Espace Agent</h2>
+                <div class="flex items-center gap-4">
+                    <div class="text-right">
+                        <p class="text-sm font-bold" id="userName">Admin_User</p>
+                        <p class="text-[10px] text-green-500 font-bold uppercase">En ligne</p>
+                    </div>
+                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold">A</div>
+                </div>
+            </header>
+
+            <div id="content" class="p-8 overflow-y-auto flex-1">
+                
+                <div id="view-agent" class="space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">
+                            <h3 class="text-gray-500 mb-2">Heure Actuelle</h3>
+                            <div id="clock" class="text-5xl font-black mb-6 text-slate-800">00:00:00</div>
+                            <button id="pointageBtn" onclick="togglePointage()" class="bg-blue-600 hover:bg-blue-700 text-white px-10 py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 transition-all active:scale-95">
+                                Pointer l'Entrée
+                            </button>
+                        </div>
+                        <div class="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                            <h3 class="font-bold mb-4 text-slate-700 italic flex items-center gap-2">
+                                <i data-lucide="history" class="w-4"></i> Mes Derniers Pointages
+                            </h3>
+                            <ul id="pointageLogs" class="space-y-3">
+                                <li class="text-sm p-3 bg-slate-50 rounded-lg flex justify-between">
+                                    <span>Lundi 01 Fév</span>
+                                    <span class="font-mono font-bold text-blue-600">08:59:12</span>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="view-admin" class="hidden space-y-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-blue-600 text-white p-6 rounded-2xl">
+                            <p class="text-blue-100 italic">Agents Présents</p>
+                            <h4 class="text-3xl font-black">12 / 15</h4>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border">
+                            <p class="text-slate-400">Retards ce jour</p>
+                            <h4 class="text-3xl font-black text-red-500">2</h4>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border">
+                            <p class="text-slate-400">Messages Non Lus</p>
+                            <h4 class="text-3xl font-black text-orange-500">5</h4>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                        <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
+                            <h3 class="font-bold italic">Gestion des Agents</h3>
+                            <button class="bg-slate-900 text-white text-xs px-3 py-1 rounded-lg">+ Ajouter Agent</button>
+                        </div>
+                        <table class="w-full text-left">
+                            <thead class="bg-slate-50 text-slate-500 text-[10px] uppercase font-bold">
+                                <tr>
+                                    <th class="p-4">Agent</th>
+                                    <th class="p-4">Statut</th>
+                                    <th class="p-4">Dernier Pointage</th>
+                                    <th class="p-4">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y text-sm">
+                                <tr>
+                                    <td class="p-4 font-bold">Marc Lefebvre</td>
+                                    <td class="p-4"><span class="bg-green-100 text-green-700 px-2 py-1 rounded text-xs italic font-bold">Présent</span></td>
+                                    <td class="p-4 italic">09:02</td>
+                                    <td class="p-4 flex gap-2">
+                                        <button class="text-blue-500 underline">Éditer</button>
+                                        <button class="text-red-500 underline">Supprimer</button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="view-chat" class="hidden h-full flex flex-col space-y-4">
+                    <div class="flex gap-4 mb-4">
+                        <button onclick="switchChat('public')" class="bg-slate-200 px-4 py-2 rounded-lg font-bold text-xs">Public</button>
+                        <button onclick="switchChat('prive')" class="bg-slate-200 px-4 py-2 rounded-lg font-bold text-xs">Messages Privés (Admin)</button>
+                    </div>
+                    <div class="flex-1 bg-white rounded-2xl border shadow-inner p-4 overflow-y-auto" id="chatBox">
+                        <div class="mb-4">
+                            <span class="font-black text-blue-600 text-xs uppercase">Système :</span>
+                            <p class="bg-blue-50 p-2 rounded-lg text-sm italic inline-block mt-1">Bienvenue dans le chat sécurisé.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="chatInput" placeholder="Écrivez votre message..." class="flex-1 border p-3 rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                        <button onclick="sendMessage()" class="bg-blue-600 text-white px-6 rounded-xl font-bold">Envoyer</button>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </div>
 
     <script>
-        // CONFIGURATION SUPABASE (À remplir)
-        const SUPABASE_URL = 'TA_URL_SUPABASE';
-        const SUPABASE_KEY = 'TA_CLE_API_ANON';
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // INITIALISATION DES ICONES
+        lucide.createIcons();
 
-        // 1. Charger les données au démarrage
-        async function chargerLeads() {
-            const { data, error } = await supabase.from('leads').select('*').order('created_at', { ascending: false });
-            if (error) console.log(error);
+        // HORLOGE TEMPS RÉEL
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').innerText = now.toLocaleTimeString();
+        }, 1000);
+
+        // GESTION DES VUES
+        function switchView(view) {
+            const views = ['agent', 'admin', 'chat'];
+            views.forEach(v => document.getElementById(`view-${v}`).classList.add('hidden'));
+            document.getElementById(`view-${view}`).classList.remove('hidden');
             
-            const tbody = document.getElementById('leadsTableBody');
-            tbody.innerHTML = ''; // On vide le tableau
-
-            data.forEach(lead => {
-                tbody.innerHTML += `
-                    <tr class="border-b hover:bg-gray-50">
-                        <td class="p-4 font-semibold">${lead.nom}</td>
-                        <td class="p-4">${lead.telephone}</td>
-                        <td class="p-4"><span class="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">${lead.statut}</span></td>
-                        <td class="p-4">
-                            <button class="text-green-600 hover:scale-110 transition"><i data-lucide="phone"></i></button>
-                        </td>
-                    </tr>
-                `;
-            });
-            lucide.createIcons();
+            const titles = { agent: 'Espace Agent / Pointage', admin: 'Supervision Globale (Admin)', chat: 'Messagerie Instantanée' };
+            document.getElementById('viewTitle').innerText = titles[view];
         }
 
-        // 2. Ajouter un lead
-        async function ajouterLead() {
-            const nom = document.getElementById('newNom').value;
-            const tel = document.getElementById('newTel').value;
+        // POINTAGE
+        let estPointe = false;
+        function togglePointage() {
+            estPointe = !estPointe;
+            const btn = document.getElementById('pointageBtn');
+            const logs = document.getElementById('pointageLogs');
+            const now = new Date();
 
-            const { error } = await supabase.from('leads').insert([{ nom: nom, telephone: tel }]);
-            
-            if (error) alert("Erreur lors de l'ajout");
-            else {
-                document.getElementById('newNom').value = '';
-                document.getElementById('newTel').value = '';
-                chargerLeads(); // On rafraîchit la liste
+            if(estPointe) {
+                btn.innerText = "Pointer la Sortie";
+                btn.classList.replace('bg-blue-600', 'bg-red-500');
+                logs.innerHTML += `<li class="text-sm p-3 bg-green-50 rounded-lg flex justify-between">
+                    <span>Entrée - ${now.toLocaleDateString()}</span>
+                    <span class="font-mono font-bold text-green-600">${now.toLocaleTimeString()}</span>
+                </li>`;
+            } else {
+                btn.innerText = "Pointer l'Entrée";
+                btn.classList.replace('bg-red-500', 'bg-blue-600');
+                logs.innerHTML += `<li class="text-sm p-3 bg-red-50 rounded-lg flex justify-between">
+                    <span>Sortie - ${now.toLocaleDateString()}</span>
+                    <span class="font-mono font-bold text-red-600">${now.toLocaleTimeString()}</span>
+                </li>`;
             }
         }
 
-        chargerLeads(); // Lancement initial
+        // CHAT SIMULÉ
+        function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const box = document.getElementById('chatBox');
+            if(input.value.trim() === "") return;
+
+            box.innerHTML += `<div class="mb-4 text-right">
+                <span class="font-black text-slate-400 text-xs uppercase text-right block">Moi :</span>
+                <p class="bg-slate-900 text-white p-2 rounded-lg text-sm inline-block mt-1 shadow-md">${input.value}</p>
+            </div>`;
+            input.value = "";
+            box.scrollTop = box.scrollHeight;
+        }
+
+        // THEMES
+        function changeTheme() {
+            const theme = document.getElementById('themeSelect').value;
+            const sidebar = document.querySelector('aside');
+            if(theme === 'dark') {
+                sidebar.className = "w-64 bg-black text-white flex flex-col shadow-xl transition-all";
+            } else if(theme === 'emerald') {
+                sidebar.className = "w-64 bg-emerald-900 text-white flex flex-col shadow-xl transition-all";
+            } else {
+                sidebar.className = "w-64 bg-slate-900 text-white flex flex-col shadow-xl transition-all";
+            }
+        }
     </script>
 </body>
 </html>
